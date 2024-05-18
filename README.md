@@ -19,6 +19,7 @@ Reading license plates without using AI
 6. compare_with_templates
    
 ![](photos/z1.png) ![](photos/z2.png) ![](photos/z3.png) ![](photos/z4.png) ![](photos/z5.png) ![](photos/z6.png) ![](photos/z7.png) ![](photos/z8.png)
+
 ![](char2/C.png) ![](char2/I.png) ![](char2/N.png) ![](char2/2.png) ![](char2/0.png) ![](char2/3.png) ![](char2/5.png) ![](char2/6.png)
 
-"CIN20356.jpg": "CIN20356",   
+#####################  RESULT: "CIN20356.jpg": "CIN20356", #######################  
