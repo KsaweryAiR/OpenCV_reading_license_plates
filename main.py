@@ -100,6 +100,9 @@ def compare_with_templates(cut_images, template_folder):
     for i, cut_image in enumerate(cut_images):
         gray_cut_image = cv2.cvtColor(cut_image, cv2.COLOR_BGR2GRAY)
         _, cut_image_thresh = cv2.threshold(gray_cut_image, 128, 255, cv2.THRESH_BINARY)
+        kernel = np.ones((7, 7), np.uint8)
+        cut_image_thresh = cv2.morphologyEx(cut_image_thresh, cv2.MORPH_CLOSE, kernel)
+        cut_image_thresh = cv2.medianBlur(cut_image_thresh, 7)
         best_match_name = None
         best_match_value = float('inf')
         I_min_val = None
