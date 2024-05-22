@@ -106,7 +106,11 @@ def compare_with_templates(cut_images, template_folder):
         best_match_name = None
         best_match_value = float('inf')
         I_min_val = None
+
         for template_name in os.listdir(template_folder):
+            if i < 2 and template_name.startswith(tuple(str(x) + ".png" for x in range(10))):
+                continue
+
             template_path = os.path.join(template_folder, template_name)
             template_image = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
             _, template_thresh = cv2.threshold(template_image, 128, 255, cv2.THRESH_BINARY)
@@ -115,17 +119,15 @@ def compare_with_templates(cut_images, template_folder):
             min_val, _, _, _ = cv2.minMaxLoc(result)
 
             if template_name == "I.png":
-                I_min_val = min_val  # Store min_val for template "I"
-                # print(f"Min value for template 'I': {I_min_val}")
+                I_min_val = min_val
             else:
                 if min_val < best_match_value:
                     best_match_value = min_val
                     best_match_name = template_name
-        if (I_min_val - best_match_value) < -200000000.0:
+
+        if I_min_val is not None and (I_min_val - best_match_value) < -200000000.0:
             best_match_name = "I.png"
-            # print(f"Best match value without 'I': {best_match_value}")
-        # print(template_name ,"różnica: ", I_min_val - best_match_value)
-        # # Add the best match letter to the list
+
         matched_letters.append(best_match_name[0])
 
     return ''.join(matched_letters)
