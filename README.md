@@ -4,19 +4,19 @@ Reading license plates without using AI
    
 ![](train_1/CIN20356.jpg)  
 
-3. find_contours
+2. find_contours
    
 ![](photos/pho1.png)    
 
-4. straighten
+3. straighten
    
 ![](photos/pho2.png)
 
-5. detect_chars
+4. detect_chars
 
 ![](photos/e1.png) ![](photos/e2.png) ![](photos/e3.png) ![](photos/e4.png) ![](photos/e5.png) ![](photos/e6.png) ![](photos/e7.png) ![](photos/e8.png)    
 
-6. compare_with_templates
+5. compare_with_templates
    
 ![](photos/z1.png) ![](photos/z2.png) ![](photos/z3.png) ![](photos/z4.png) ![](photos/z5.png) ![](photos/z6.png) ![](photos/z7.png) ![](photos/z8.png)
 
