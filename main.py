@@ -2,6 +2,9 @@ import os
 import cv2
 import numpy as np
 import json
+import argparse
+from pathlib import Path
+
 
 def blue_is_white(image):
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -21,8 +24,21 @@ def find_contours(filename, img):
     thresholded = cv2.bitwise_not(thresholded)
     edged = cv2.Canny(thresholded, 60, 200)
     contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    largest_contour = max(contours, key=cv2.contourArea)
 
+    if not contours:
+        height, width = img.shape[:2]
+        center_x, center_y = width // 2, height // 2
+        quarter_width, quarter_height = width // 4, height // 4
+
+        point1 = (center_x - quarter_width, center_y - quarter_height)
+        point2 = (center_x + quarter_width, center_y - quarter_height)
+        point3 = (center_x + quarter_width, center_y + quarter_height)
+        point4 = (center_x - quarter_width, center_y + quarter_height)
+
+        points_vector = [point1, point2, point3, point4]
+        return filename, thresholded, points_vector
+
+    largest_contour = max(contours, key=cv2.contourArea)
     area = cv2.contourArea(largest_contour)
 
     if area < 500000.0:
@@ -35,10 +51,37 @@ def find_contours(filename, img):
         thresholded = cv2.bitwise_not(thresholded)
         edged = cv2.Canny(thresholded, 0, 200)
         contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if not contours:
+            height, width = img.shape[:2]
+            center_x, center_y = width // 2, height // 2
+            quarter_width, quarter_height = width // 4, height // 4
+
+            point1 = (center_x - quarter_width, center_y - quarter_height)
+            point2 = (center_x + quarter_width, center_y - quarter_height)
+            point3 = (center_x + quarter_width, center_y + quarter_height)
+            point4 = (center_x - quarter_width, center_y + quarter_height)
+
+            points_vector = [point1, point2, point3, point4]
+            return filename, thresholded, points_vector
+
         largest_contour = max(contours, key=cv2.contourArea)
 
     epsilon = 0.01 * cv2.arcLength(largest_contour, True)
     approx = cv2.approxPolyDP(largest_contour, epsilon, True)
+
+    if len(approx) < 4:
+        height, width = img.shape[:2]
+        center_x, center_y = width // 2, height // 2
+        quarter_width, quarter_height = width // 4, height // 4
+
+        point1 = (center_x - quarter_width, center_y - quarter_height)
+        point2 = (center_x + quarter_width, center_y - quarter_height)
+        point3 = (center_x + quarter_width, center_y + quarter_height)
+        point4 = (center_x - quarter_width, center_y + quarter_height)
+
+        points_vector = [point1, point2, point3, point4]
+        return filename, thresholded, points_vector
 
     sorted_by_sum = sorted(approx.reshape(-1, 2), key=lambda x: x[0] + x[1])
     point1 = sorted_by_sum[0]
@@ -50,6 +93,18 @@ def find_contours(filename, img):
     points_vector = [point1, point2, point3, point4]
     points_tuples = [(point[0], point[1]) for point in points_vector]
 
+    if len(points_vector) != 4:
+        height, width = img.shape[:2]
+        center_x, center_y = width // 2, height // 2
+        quarter_width, quarter_height = width // 4, height // 4
+
+        point1 = (center_x - quarter_width, center_y - quarter_height)
+        point2 = (center_x + quarter_width, center_y - quarter_height)
+        point3 = (center_x + quarter_width, center_y + quarter_height)
+        point4 = (center_x - quarter_width, center_y + quarter_height)
+
+        points_vector = [point1, point2, point3, point4]
+
     return filename, thresholded, points_vector
 
 def straighten(data, img):
@@ -59,6 +114,7 @@ def straighten(data, img):
     perspective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
     warped_image = cv2.warpPerspective(img, perspective_matrix, (924, 250))
     return filename, warped_image
+
 
 def detect_chars(cut_images):
     filename, image = cut_images
@@ -82,18 +138,29 @@ def detect_chars(cut_images):
         largest_rectangles.append(rect)
 
     heights = [rect[0][3] for rect in largest_rectangles]
-    avg_height = sum(heights) / len(heights)
-    filtered_rectangles = [rect for rect in largest_rectangles if rect[0][3] >= 0.8 * avg_height]
-    filtered_rectangles.sort(key=lambda rect: rect[0][0])
 
-    cut_images = []
-    for rect in filtered_rectangles:
-        (x, y, w, h), _ = rect
-        cut_image = image[y:y+h, x:x+w].copy()
-        cut_images.append(cut_image)
+    if heights:
+        avg_height = sum(heights) / len(heights)
+        filtered_rectangles = [rect for rect in largest_rectangles if rect[0][3] >= 0.8 * avg_height]
+        filtered_rectangles.sort(key=lambda rect: rect[0][0])
+
+        cut_images = []
+        for rect in filtered_rectangles:
+            (x, y, w, h), _ = rect
+            cut_image = image[y:y + h, x:x + w].copy()
+            cut_images.append(cut_image)
+    else:
+        height, width = image.shape[:2]
+        parts = 8
+        step = width // parts
+        cut_images = []
+        for i in range(parts):
+            start_x = i * step
+            end_x = (i + 1) * step if i < parts - 1 else width
+            cut_image = image[:, start_x:end_x].copy()
+            cut_images.append(cut_image)
 
     return cut_images
-
 
 def compare_with_templates(cut_images, template_folder):
     matched_letters = []
@@ -132,24 +199,34 @@ def compare_with_templates(cut_images, template_folder):
 
     return ''.join(matched_letters)
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('images_dir', type=str)
+    parser.add_argument('results_file', type=str)
+    args = parser.parse_args()
 
-template_folder = 'char2'
-folder_path = 'train_1'
+    images_dir = Path(args.images_dir)
+    results_file = Path(args.results_file)
+    template_folder = 'dane'
 
-if not os.path.exists(folder_path):
-    print("Podany folder nie istnieje.")
-else:
+    images_paths = sorted([image_path for image_path in images_dir.iterdir() if image_path.name.endswith('.jpg')])
     results = {}
-    for filename in os.listdir(folder_path):
-        if filename.endswith('.jpg'):
-            filepath = os.path.join(folder_path, filename)
-            img = cv2.imread(filepath)
-            if img is not None:
-                w1 = find_contours(filename, img)
-                cut_images = straighten(w1, img)
-                w2 = detect_chars(cut_images)
-                matched_string = compare_with_templates(w2, template_folder)
-                results[filename] = matched_string
+    for image_path in images_paths:
+        image = cv2.imread(str(image_path))
+        if image is None:
+            print(f'Error loading image {image_path}')
+            continue
+        filename = image_path.name  #załaduj nazwy zdjec
+        w1 = find_contours(filename, image) #filtruje obraz, wykrywa ramki tablicy rejestracyjnej i zwraca 4 punkty
+        cut_images = straighten(w1, image) #na podstawie 4 punktow tworzy macierz, prostuje zdjecie i wycina obraz z rejestracją
+        w2 = detect_chars(cut_images) #znajduje litery na obrazie a nstepnie je wycina
+        matched_string = compare_with_templates(w2, template_folder) #dopasowuje wyciete litery do temlates i zwraca nazwe templates (literki)
+        results[filename] = matched_string #zapisz do pliku json
 
-    with open('results.json', 'w') as json_file:
-        json.dump(results, json_file, indent=4)
+        #to tak krótko opisane, wiecej jest w pliku pdf
+
+    with results_file.open('w') as output_file:
+        json.dump(results, output_file, indent=4)
+
+if __name__ == '__main__':
+    main()
